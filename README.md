@@ -25,7 +25,7 @@
 Скачайте скрипт и сделайте его исполняемым:
 
 ```bash
-wget https://raw.githubusercontent.com/ВАШ_НИК/admintools/main/admintools.sh
+wget https://raw.githubusercontent.com/snakedr/admintools/main/admintools.sh
 chmod +x admintools.sh
 sudo ./admintools.sh
 ```
@@ -33,7 +33,7 @@ sudo ./admintools.sh
 Или клонируйте репозиторий:
 
 ```bash
-git clone https://github.com/ВАШ_НИК/admintools.git
+git clone https://github.com/snakedr/admintools.git
 cd admintools
 chmod +x admintools.sh
 sudo ./admintools.sh
@@ -378,8 +378,6 @@ ollama serve  # запустить сервер
 ollama run llama2  # запустить модель
 ```
 
-Требует установленного Docker.
-
 4. **Status** — показать статус установленных приложений
 
 Показывает, какие из приложений установлены и запущены.
@@ -457,21 +455,20 @@ ollama run llama2  # запустить модель
 
 Останавливает все сервисы. Используется редко, например, для обслуживания.
 
-### 9. Service Manager
+## Warning
 
-Управление системными сервисами.
+This script makes system-level changes:
+- modifies SSH configuration
+- manages firewall rules (UFW)
+- installs system packages
 
-Показывает статус сервисов: ssh, sshd, docker, fail2ban, nginx, apache2
+Use at your own risk.
+Always ensure you have SSH access before applying changes.
 
-**Пункты меню:**
+## Compatibility
 
-1. **Restart all services** — перезапустить все установленные сервисы
-2. **Stop all services** — остановить все установленные сервисы
-
-Цветовая индикация:
-- Зеленый — сервис запущен (active)
-- Желтый — сервис установлен, но остановлен (inactive)
-- Серый — сервис не установлен (not found)
+Tested on Debian.
+Other distributions are not guaranteed to work.
 
 ## Безопасность
 
