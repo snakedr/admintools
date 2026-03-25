@@ -1,6 +1,6 @@
 # Admin Tools
 
-Universal script for configuring and managing a Linux server through an easy-to-use menu.
+Universal script for configuring and managing a Linux server through a convenient menu.
 
 ## Features
 
@@ -8,8 +8,8 @@ Universal script for configuring and managing a Linux server through an easy-to-
 - **Users** — user creation, SSH key setup
 - **Docker** — Docker installation
 - **UFW** — firewall management
-- **Fail2Ban** — brute-force protection
-- **Apps** — installation of OpenCode, Open WebUI, Ollama
+- **Fail2Ban** — brute force protection
+- **Apps** — install OpenCode, Open WebUI, Ollama
 - **System Monitor** — CPU, RAM, disk, process monitoring
 - **Network Tools** — IP addresses, ports, network tests
 - **Service Manager** — service management
@@ -47,7 +47,7 @@ Run the script as root:
 sudo ./admintools.sh
 ```
 
-The main menu will open. Select the desired section by entering the menu item number and pressing Enter.
+The main menu will open. Select the desired section by entering the number and pressing Enter.
 
 ### Main Menu
 
@@ -77,171 +77,373 @@ IP:   xxx.xxx.xxx.xxx
 
 ### 1. SSH
 
-Manage SSH server settings.
+SSH server settings management.
 
-**Menu Items:**
+**What each option does:**
 
-1. **Change SSH port** — change SSH port (default 22)
-2. **Root: prohibit-password** — allow root login only with key
-3. **Enable PubkeyAuthentication** — enable key-based authentication
-4. **Disable PubkeyAuthentication** — disable key-based authentication
+1. **Change SSH port** — change SSH port
+
+SSH runs on port 22 by default. This is the first port attackers check. Changing to another port (e.g., 2222 or 443) hides SSH from random scanners.
+
+2. **Root: prohibit-password** — allow root login only by key
+
+Allows root login, but only with SSH key, without password. Safe if root has no password or password is not used.
+
+3. **Enable PubkeyAuthentication** — enable key authentication
+
+Enables SSH key login. Recommended to do right after system installation.
+
+4. **Disable PubkeyAuthentication** — disable key authentication
+
+Disables key login. Rarely used, usually when switching to password-only.
+
 5. **Disable PasswordAuthentication** — disable password authentication
-6. **Edit sshd_config.d** — edit additional config files
-7. **Show config** — show current SSH settings
-8. **Restart SSH** — restart SSH service
-9. **Backup list** — show backup list of SSH config
 
-**Important Warnings:**
+Disables password login. AFTER THIS, YOU CAN ONLY LOG IN BY KEY.
+
+This is the most important security option. After enabling:
+- Passwords are no longer accepted
+- Login only by SSH key
+- Make sure the key is configured BEFORE enabling this option
+
+6. **Edit sshd_config.d** — edit additional config files
+
+In Debian, SSH configuration can be split into files in /etc/ssh/sshd_config.d/. This option lets you edit these files via nano.
+
+7. **Show config** — show current SSH settings
+
+Shows the actual SSH settings currently applied. Useful for verification.
+
+8. **Restart SSH** — restart SSH service
+
+Restarts SSH service to apply changes. Current connection won't be interrupted.
+
+9. **Backup list** — show config backup list
+
+Shows all created backups of /etc/ssh/sshd_config. Filenames contain creation date and time.
+
+**Important warnings:**
 
 - When changing port or disabling passwords, make sure you have SSH key access
-- The script automatically backs up the SSH config before each change
-- NEVER disable passwords until key-based access is configured
+- The script automatically backs up SSH config before each change
+- NEVER disable passwords until key login is configured
 
-**Recommended SSH Setup Sequence:**
+**Recommended SSH setup sequence:**
 
 1. SSH → 2 (Root: prohibit-password) — if root login is needed
 2. SSH → 3 (Enable PubkeyAuthentication) — enable keys
 3. SSH → 5 (Disable PasswordAuthentication) — disable passwords
 4. SSH → 8 (Restart SSH) — apply changes
 
+**How to verify the key works:**
+
+Before disabling passwords, open a second terminal and try to connect:
+```bash
+ssh -p your_port root@server_ip
+```
+If connection works by key — you can disable passwords.
+
 ### 2. Users
 
-Manage users and SSH keys.
+User and SSH key management.
 
-**What are SSH keys and why are they needed:**
+---
 
-SSH keys are a pair of files (private and public) used for authentication instead of a password. The private key is stored on your computer, the public key — on the server. This is more secure than a password because:
-- Passwords can be brute-forced or stolen
-- SSH keys are virtually impossible to hack
-- No need to enter password every time
+#### What are SSH Keys
 
-**Key Types:**
+SSH keys are a pair of files:
 
-- **ed25519** — modern and most secure key type (recommended)
-- **RSA** — older type, still works, but less preferred
+* **private key** — stored on your computer
+* **public key** — added to the server in `~/.ssh/authorized_keys`
 
-**Menu Items:**
+The private key is used for login and should never be shared with others.
 
-1. **Add sudo user** — create new user with sudo privileges
-2. **Prepare .ssh + authorized_keys** — prepare .ssh directory for user
-3. **Generate server-side ed25519 keypair** — generate ed25519 keypair on server
-4. **Add client public key to authorized_keys** — add client public key
-5. **Show generated public key** — show generated public key
-6. **Authorize generated public key** — add generated key to authorized_keys
+The public key can be safely copied to the server.
 
-**Step-by-step: How to set up SSH key login**
+---
 
-1. Create user (if needed): Users → 1
-2. Prepare directory: Users → 2 (enter username)
-3. Get public key from your computer:
-   - Linux/Mac: `cat ~/.ssh/id_ed25519.pub`
-   - Windows (PowerShell): `Get-Content ~/.ssh/id_ed25519.pub`
-4. Add key to server: Users → 4
-   - Enter username
-   - Paste public key (single line)
+#### Why it's better than passwords
+
+- passwords can be guessed or stolen
+- SSH keys are practically impossible to brute force
+- no need to enter password each time you connect
+
+---
+
+#### How it works
+
+1. You connect to the server from your computer
+2. Server checks the `authorized_keys` file
+3. If your public key is there — access is granted
+
+---
+
+#### Where keys are stored
+
+| Where         | What's stored                              |
+| ------------- | ------------------------------------------ |
+| Your computer | private + public key                      |
+| Server        | only `authorized_keys` (public keys)       |
+
+Important:
+the server does not store your private key.
+
+---
+
+#### Key types
+
+* **ed25519** — modern and recommended
+* **RSA** — old, but still supported
+
+---
+
+#### Menu options
+
+### 1. Add sudo user
+
+Creates a new user and adds them to the sudo group.
+Recommended to not work as root permanently.
+
+---
+
+### 2. Prepare .ssh + authorized_keys
+
+Creates:
+
+* `~/.ssh` directory
+* `authorized_keys` file
+* correct permissions
+
+---
+
+### 3. Generate server-side ed25519 keypair
+
+Creates keys on the server:
+
+* `~/.ssh/id_ed25519` — private
+* `~/.ssh/id_ed25519.pub` — public
+
+This is needed when the server itself connects to other services
+(e.g., GitHub, another server).
+
+---
+
+### 4. Add client public key to authorized_keys
+
+Main scenario.
+
+You add the public key from your computer to the server.
+After that, you can connect without password.
+
+---
+
+#### How to get your public key
+
+On your computer:
+
+Linux / macOS:
+
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
+
+Windows (PowerShell):
+
+```powershell
+Get-Content ~/.ssh/id_ed25519.pub
+```
+
+Example key:
+
+```
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB3Lw... user@computer
+```
+
+Copy the entire line and paste into option 4.
+
+---
+
+### 5. Show generated public key
+
+Shows the key created on the server (option 3).
+Needed if you want to use the server as a client.
+
+---
+
+### 6. Authorize generated public key
+
+Adds server key to `authorized_keys`.
+
+Rarely used. Usually not required.
+
+---
+
+#### SSH access setup step by step
+
+1. Users → 1 — create user
+2. Users → 2 — prepare `.ssh`
+3. Get public key on your computer
+4. Users → 4 — add key to server
 5. Connect:
-   ```bash
-   ssh user@server-ip
-   ```
+
+```bash
+ssh user@server-ip
+```
+
+---
+
+#### Important distinction
+
+* Option 4 — you connect to the server
+* Options 3, 5, 6 — server connects to other systems
+
+In most cases, only option 4 is used.
 
 ### 3. Docker
 
 Docker installation.
 
-**Menu Items:**
+**Menu options:**
 
-1. **Install Docker** — install Docker
-2. **Reference commands** — show main Docker commands
+1. **Install Docker** — install Docker + Docker Compose
+2. **Reference commands** — show basic Docker commands
 
 ### 4. UFW
 
-UFW firewall management (Uncomplicated Firewall).
+UFW (Uncomplicated Firewall) management.
 
-UFW is a simple firewall for Linux. It allows controlling which connections are allowed and which are blocked.
+UFW is a simple Linux firewall. It controls which connections are allowed and which are blocked.
 
-**What is a firewall and why is it needed:**
+**What is a firewall and why it's needed:**
 
-A firewall is a program that controls incoming and outgoing network traffic. It works as a filter: allows permitted connections and blocks unwanted ones.
+A firewall is a program that controls incoming and outgoing network traffic. It works as a filter: lets allowed connections through and blocks unwanted ones.
 
 Without a firewall, your server is open to the world. Attackers can:
 - Scan ports
-- Brute-force SSH passwords
+- Brute force SSH passwords
 - Exploit service vulnerabilities
 
-**Menu Items:**
+**Menu options:**
 
 1. **Install/Remove** — install or remove UFW
-2. **Ports** — port management:
-   - Allow port — open port
-   - Delete port — close port
-   - Show numbered rules — show rules with numbers
-3. **Defaults** — default policy settings:
-   - Default deny incoming — deny all incoming
-   - Default allow outgoing — allow all outgoing
-   - Set both — apply both policies
+
+Installs UFW from repository or removes it.
+
+2. **Ports** — port management
+
+Allows opening (allowing) or closing (denying) network ports.
+
+- Allow port — open a port. Examples:
+  - 80 — HTTP server
+  - 443 — HTTPS server
+  - 22/tcp — SSH (if port not changed)
+  - 2222/tcp — SSH (if changed to 2222)
+- Delete port — close a port. You can enter the number (80) or the rule number from the list.
+- Show numbered rules — show all rules with numbers. Useful before deleting a rule.
+
+3. **Defaults** — default policy settings
+
+Default policy determines what to do with connections that don't match explicit rules.
+
+- Default deny incoming — deny ALL incoming connections. Recommended for servers.
+- Default allow outgoing — allow ALL outgoing connections. Usually should stay allowed.
+- Set both — apply both policies at once.
+
 4. **Status** — show firewall status and rules
-5. **Reset** — reset all rules (with confirmation)
+
+Displays current UFW state and active rules.
+
+5. **Reset** — reset all rules
+
+Removes all UFW rules and resets settings. Requires confirmation.
+
 6. **Enable** — enable firewall
+
+Activates UFW. Only explicitly allowed ports will work after enabling.
+
 7. **Disable** — disable firewall
+
+Deactivates UFW. All connections will be allowed.
+
 8. **Reference commands** — UFW command reference
 
-**Recommended Setup Sequence:**
+Shows list of basic UFW commands for terminal use.
+
+**Recommended sequence for basic setup:**
 
 1. UFW → 1 → 1 (Install)
 2. UFW → 2 → 1 → enter your SSH port (e.g., 22/tcp or 2222/tcp)
 3. UFW → 3 → 3 (Set both — deny incoming, allow outgoing)
 4. UFW → 6 (Enable)
 
+**Usage examples:**
+
+- Open port for web server:
+  UFW → Ports → Allow port → 80
+
+- Open port for HTTPS:
+  UFW → Ports → Allow port → 443
+
+- Close port:
+  UFW → Ports → Delete port → enter port number
+
 ### 5. Fail2Ban
 
-Fail2Ban installation and setup for brute-force protection.
+Fail2Ban installation and setup for brute force protection.
 
-**What is Fail2Ban and why is it needed:**
+**What is Fail2Ban and why it's needed:**
 
-Fail2Ban is a program that automatically blocks IP addresses after multiple failed login attempts. It monitors logs and bans attackers trying to brute-force SSH, FTP, web servers, and other services.
+Fail2Ban is a program that automatically blocks IP addresses after multiple failed login attempts. It monitors logs and bans attackers trying to brute force SSH, FTP, web servers, and other services.
 
 **How it works:**
 
 1. Fail2Ban reads system logs
-2. If it detects multiple failed login attempts (e.g., 5 failed attempts within 10 minutes)
-3. It blocks the attacker's IP address for a certain time (usually 10 minutes)
-4. After the ban expires, the block is removed
+2. If it detects multiple failed login attempts (e.g., 5 failed attempts in 10 minutes)
+3. Blocks the attacker's IP address for a certain time (usually 10 minutes)
+4. After the time expires, the ban is lifted
 
-**Menu Items:**
+**Menu options:**
 
 1. **Install Fail2Ban** — install Fail2Ban
+
+Installs Fail2Ban from repository and enables it. After installation, it automatically starts protecting SSH.
+
 2. **Reference commands** — command reference
+
+Shows basic commands for manual Fail2Ban management.
 
 **After installing Fail2Ban:**
 
 - SSH protection is enabled automatically
-- No additional configuration required
-- Check status: `fail2ban-client status sshd`
+- No additional configuration needed
+- You can check status: `fail2ban-client status sshd`
 
 ### 6. Apps
 
 Application installation.
 
-**Menu Items:**
+This section lets you install popular apps for working with AI and containers.
 
-1. **OpenCode** — install OpenCode (AI programming assistant)
+**Menu options:**
 
-OpenCode is an AI coding assistant that works in the terminal. It helps write code, fix errors, explain code, create files, and more.
+1. **OpenCode** — install OpenCode
+
+OpenCode is an AI programming assistant that works in the terminal. Helps write code, fix errors, explain code, create files, and more.
 
 After installation, run with:
 ```bash
 opencode
 ```
 
-2. **Open WebUI** — install Open WebUI (web interface for AI)
+2. **Open WebUI** — install Open WebUI
 
-Open WebUI is a web interface for working with AI models (including Ollama). Allows interacting with AI through a browser.
+Open WebUI is a web interface for working with AI models (including Ollama). Allows chatting with AI through a browser.
 
-After installation, accessible at: http://your_ip:3000
+After installation, available at: http://your_ip:3000
 
-Requires Docker.
+Requires Docker to be installed.
 
-3. **Ollama** — install Ollama (local LLM)
+3. **Ollama** — install Ollama
 
 Ollama is a platform for running large language models (LLM) locally on the server. Supports many models: llama2, mistral, codellama, and others.
 
@@ -251,64 +453,82 @@ ollama serve  # start server
 ollama run llama2  # run model
 ```
 
-4. **Status** — show status of installed applications
+4. **Status** — show status of installed apps
+
+Shows which apps are installed and running.
 
 5. **Reference** — installation command reference
+
+Shows commands for manual app installation.
 
 ### 7. System Monitor
 
 Real-time system monitoring.
 
-Shows:
+Shows current server state:
 
-- Uptime and Load Average
-- Memory usage (free -h)
-- Disk usage (df -h)
-- Top 10 processes by CPU usage
+- **Uptime** — how long the server has been running since last reboot
+- **Load Average** — average load at 1, 5, and 15 minutes. If load exceeds CPU cores — server is overloaded
+- **Memory** — RAM usage. Shows how much is used, free, and total
+- **Disk** — disk space usage. Shows size and usage percentage for each partition
+- **Top processes** — list of most resource-intensive processes. Shows PID, user, % CPU, % RAM, and process name
 
-Press r to refresh, 0 to exit.
+Press r to refresh data, q to exit.
 
 ### 8. Network Tools
 
-Network diagnostic tools.
+Network tools for diagnostics and testing.
 
-**Shows:**
+**What it shows:**
 
-- Public IP address
-- Local IP address
-- Listening ports
-- Total TCP connections
+- **Public IP** — your IP address on the internet. Determined via external service.
+- **Local IP** — IP address on local network (usually in 192.168.x.x or 10.x.x.x range)
+- **Listening ports** — which ports are open and listening for connections. Useful for checking which services are running
+- **TCP connections** — total number of TCP connections to the server
 
-**Menu Items:**
+**Menu options:**
 
 1. **Test ping** — ping to google.com
-2. **Test curl** — test curl to google.com
+
+Checks internet availability and connection quality. Shows response time (ping).
+
+2. **Test curl** — curl test to google.com
+
+Checks HTTP connection. Shows response headers.
+
 3. **Check DNS** — check DNS
+
+Checks DNS server operation. Shows how google.com resolves.
 
 ### 9. Service Manager
 
 System service management.
 
-Services are programs that run in the background and provide system functionality: web server, SSH, databases, etc.
+Services are programs that run in the background and ensure system operation. For example, web server, SSH, database.
 
 **Checked services:**
 
-- ssh — SSH server
+- ssh/sshd — SSH server
 - docker — container platform
-- fail2ban — brute-force protection
+- fail2ban — brute force protection
 - nginx — web server
 - apache2 — web server
 
 **Color indication:**
 
 - Green (active) — service is running
-- Yellow (inactive) — service is installed but stopped
+- Yellow (inactive) — service is installed but not running
 - Gray (not found) — service is not installed
 
-**Menu Items:**
+**Menu options:**
 
 1. **Restart all services** — restart all installed services
+
+Starts and restarts all services from the list. Used after configuration changes.
+
 2. **Stop all services** — stop all installed services
+
+Stops all services. Rarely used, e.g., for maintenance.
 
 ## Warning
 
@@ -327,11 +547,11 @@ Other distributions are not guaranteed to work.
 
 ## Security
 
-Some recommendations when using the script:
+Several recommendations when using the script:
 
-1. **SSH** — after configuration, always verify you can connect with new settings
+1. **SSH** — after setup, always verify you can connect with new settings
 2. **UFW** — before enabling, make sure SSH port is open
-3. **Passwords** — do not store passwords in scripts, use SSH keys
+3. **Passwords** — don't store passwords in scripts, use SSH keys
 4. **Backups** — script automatically backs up SSH configs
 
 ## License
