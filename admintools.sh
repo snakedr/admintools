@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -E
+set -eE
 trap 'echo "Error on line $LINENO. Returning to menu."' ERR
 
 # =========================
@@ -53,7 +53,7 @@ is_valid_ssh_public_key() {
 
 ensure_curl() {
   if ! command -v curl >/dev/null 2>&1; then
-    apt install -y curl
+    apt update && apt install -y curl
   fi
 }
 
@@ -204,6 +204,7 @@ ssh_backup_list() {
 
 ssh_menu() {
   while true; do
+    clear
     menu_header "SSH Settings"
     echo ""
     print_menu_item "1" "Change SSH port" "$GREEN"
@@ -423,6 +424,7 @@ ssh_add_key() {
 
 user_menu() {
   while true; do
+    clear
     menu_header "User Management"
     echo ""
     echo -e "${DIM}Tips:${NC}"
@@ -519,6 +521,7 @@ EOF
 
 docker_menu() {
   while true; do
+    clear
     menu_header "Docker"
     echo ""
     print_menu_item "1" "Install Docker" "$GREEN"
@@ -680,6 +683,7 @@ ufw_install_menu() {
 
 ufw_menu() {
   while true; do
+    clear
     menu_header "UFW Firewall"
     echo ""
     print_menu_item "1" "Install/Remove" "$GREEN"
@@ -744,6 +748,7 @@ EOF
 
 fail2ban_menu() {
   while true; do
+    clear
     menu_header "Fail2Ban"
     echo ""
     print_menu_item "1" "Install Fail2Ban" "$GREEN"
@@ -769,11 +774,17 @@ fail2ban_menu() {
 
 apps_install_opencode() {
   ensure_curl
+  echo -e "${YELLOW}Warning: This will execute code from opencode.ai${NC}"
+  read -p "Continue? [y/N]: " CONFIRM
+  [[ "$CONFIRM" =~ ^[Yy]$ ]] || return
   curl -fsSL https://opencode.ai/install | bash
 }
 
 apps_install_ollama() {
   ensure_curl
+  echo -e "${YELLOW}Warning: This will execute code from ollama.com${NC}"
+  read -p "Continue? [y/N]: " CONFIRM
+  [[ "$CONFIRM" =~ ^[Yy]$ ]] || return
   curl -fsSL https://ollama.com/install.sh | sh
 }
 
@@ -798,92 +809,6 @@ apps_install_webui() {
     ghcr.io/open-webui/open-webui:main
 
   echo -e "${GREEN}✔ Open WebUI started on port 3000"
-}
-
-apps_status() {
-
-  mkdir -p "$CONF_DIR"
-
-  if ! command -v curl >/dev/null 2>&1; then
-    apt install -y curl
-  fi
-  if ! command -v git >/dev/null 2>&1; then
-    apt install -y git
-  fi
-  if ! command -v go >/dev/null 2>&1; then
-    apt install -y golang
-  fi
-
-  if [ ! -f "$BIN_PATH" ]; then
-    echo "[*] Building mtg..."
-    rm -rf /tmp/mtg
-    git clone https://github.com/9seconds/mtg.git /tmp/mtg
-    cd /tmp/mtg
-    go build -o mtg
-    mv mtg "$BIN_PATH"
-    chmod +x "$BIN_PATH"
-  fi
-
-  read -rp "Fake TLS domain [$DEFAULT_DOMAIN]: " DOMAIN
-  DOMAIN=${DOMAIN:-$DEFAULT_DOMAIN}
-
-  SECRET=$("$BIN_PATH" generate-secret --hex "$DOMAIN")
-  SECRET=$(printf '%s' "$SECRET" | tr -d '\n\r ')
-
-  if [ -z "$SECRET" ]; then
-    echo -e "${RED}❌ Secret generation failed"
-    return
-  fi
-
-  read -rp "Ports (comma, default 443): " PORTS
-  PORTS=${PORTS:-443}
-
-  : > "$CONFIG_FILE"
-  for p in $(printf '%s' "$PORTS" | tr ',' ' '); do
-    printf 'bind-to = "0.0.0.0:%s"\n' "$p" >> "$CONFIG_FILE"
-  done
-  printf 'secret = "%s"\n' "$SECRET" >> "$CONFIG_FILE"
-
-  cat > "/etc/systemd/system/$SERVICE_NAME.service" <<EOF
-[Unit]
-Description=MTProto Proxy (mtg)
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=$BIN_PATH run $CONFIG_FILE
-Restart=always
-RestartSec=3
-LimitNOFILE=1048576
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  systemctl daemon-reexec
-  systemctl daemon-reload
-  systemctl enable "$SERVICE_NAME"
-  systemctl restart "$SERVICE_NAME"
-
-  sleep 2
-  if ! systemctl is-active --quiet "$SERVICE_NAME"; then
-    echo -e "${RED}❌ MTProto service failed"
-    journalctl -u "$SERVICE_NAME" -n 30 --no-pager
-    return
-  fi
-
-  IP=$(curl -s -4 --max-time 5 https://api.ipify.org || true)
-  if [ -z "$IP" ]; then
-    IP=$(hostname -I | awk '{print $1}')
-  fi
-
-  echo -e "${GREEN}✔ MTProto installed"
-  echo "IP: $IP"
-  echo "Ports: $PORTS"
-  echo "Secret: $SECRET"
-  for p in $(printf '%s' "$PORTS" | tr ',' ' '); do
-    echo "tg://proxy?server=$IP&port=$p&secret=$SECRET"
-  done
 }
 
 apps_status() {
@@ -937,6 +862,7 @@ EOF
 
 apps_menu() {
   while true; do
+    clear
     menu_header "Apps Installation"
     echo ""
     echo -e "${WHITE}━━━ Install ━━━${NC}"
@@ -971,6 +897,7 @@ apps_menu() {
 
 sys_monitor() {
   while true; do
+    clear
     menu_header "System Monitor"
     echo ""
     
@@ -1014,12 +941,13 @@ sys_monitor() {
 
 net_tools() {
   while true; do
+    clear
     menu_header "Network Tools"
     echo ""
     
     # IPs
     echo -e "${WHITE}━━━ IP Addresses ━━━${NC}"
-    echo -e "${GRAY}Public:${NC} $(curl -s -4 https://api.ipify.org 2>/dev/null || echo 'N/A')"
+    echo -e "${GRAY}Public:${NC} $(curl -s --max-time 5 -4 https://api.ipify.org 2>/dev/null || echo 'N/A')"
     echo -e "${GRAY}Local:${NC}  $(hostname -I 2>/dev/null || echo 'N/A')"
     echo ""
     
@@ -1044,7 +972,7 @@ net_tools() {
     
     case $c in
       1) ping -c 3 google.com ;;
-      2) curl -sI https://google.com | head -5 ;;
+      2) curl -s --max-time 5 -I https://google.com | head -5 ;;
       3) nslookup google.com 8.8.8.8 ;;
       r) continue ;;
       0) break ;;
@@ -1057,10 +985,11 @@ net_tools() {
 # SERVICE MANAGER
 # =========================
 
-service_list="ssh sshd docker fail2ban nginx apache2"
+service_list="ssh docker fail2ban nginx apache2"
 
 service_manager() {
   while true; do
+    clear
     menu_header "Service Manager"
     echo ""
     
