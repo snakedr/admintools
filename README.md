@@ -230,7 +230,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB3Lw... user@computer
 
 **Пункты меню:**
 
-1. **Install Docker** — установить Docker
+1. **Install Docker** — установить Docker + docker composer
 2. **Reference commands** — показать основные команды Docker
 
 ### 4. UFW
