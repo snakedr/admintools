@@ -53,7 +53,8 @@ is_valid_ssh_public_key() {
 
 ensure_curl() {
   if ! command -v curl >/dev/null 2>&1; then
-    apt update && apt install -y curl
+    apt update
+    apt install -y curl
   fi
 }
 
@@ -260,7 +261,7 @@ user_add() {
 }
 
 user_prepare_ssh() {
-  local U HOME_DIR
+  local U HOME_DIR USER_GROUP
 
   read -rp "Username: " U
 
@@ -275,17 +276,24 @@ user_prepare_ssh() {
     return
   fi
 
+  USER_GROUP="$(id -gn "$U" 2>/dev/null)"
+  if [ -z "$USER_GROUP" ]; then
+    echo -e "${RED}❌ Could not determine user primary group"
+    return
+  fi
+
   mkdir -p "$HOME_DIR/.ssh"
   touch "$HOME_DIR/.ssh/authorized_keys"
   chmod 700 "$HOME_DIR/.ssh"
   chmod 600 "$HOME_DIR/.ssh/authorized_keys"
-  chown -R "$U:$U" "$HOME_DIR/.ssh"
+  chown "$U:$USER_GROUP" "$HOME_DIR/.ssh"
+  chown "$U:$USER_GROUP" "$HOME_DIR/.ssh/authorized_keys"
 
   echo -e "${GREEN}✔ SSH directory prepared${NC}"
 }
 
 ssh_add_key() {
-  local U HOME_DIR KEY
+  local U HOME_DIR KEY USER_GROUP
 
   read -rp "Username: " U
 
@@ -300,30 +308,56 @@ ssh_add_key() {
     return
   fi
 
+  USER_GROUP="$(id -gn "$U" 2>/dev/null)"
+  if [ -z "$USER_GROUP" ]; then
+    echo -e "${RED}❌ Could not determine user primary group"
+    return
+  fi
+
   mkdir -p "$HOME_DIR/.ssh"
   touch "$HOME_DIR/.ssh/authorized_keys"
   chmod 700 "$HOME_DIR/.ssh"
   chmod 600 "$HOME_DIR/.ssh/authorized_keys"
-  chown -R "$U:$U" "$HOME_DIR/.ssh"
+  chown "$U:$USER_GROUP" "$HOME_DIR/.ssh"
+  chown "$U:$USER_GROUP" "$HOME_DIR/.ssh/authorized_keys"
 
   echo "Paste public key in one line:"
   echo "Example: ssh-ed25519 AAAAC3Nza... comment"
   read -r KEY
+
+  KEY=$(echo "$KEY" | tr -d '\r')
 
   if [ -z "$KEY" ]; then
     echo -e "${RED}❌ Key cannot be empty"
     return
   fi
 
-  if ! is_valid_ssh_public_key "$KEY"; then
+  local TEMP_KEY
+  TEMP_KEY=$(mktemp)
+  trap 'rm -f "$TEMP_KEY"' EXIT
+
+  echo "$KEY" > "$TEMP_KEY"
+  if ! ssh-keygen -l -f "$TEMP_KEY" >/dev/null 2>&1; then
+    rm -f "$TEMP_KEY"
+    trap - EXIT
     echo -e "${RED}❌ Invalid SSH public key format"
     return
   fi
 
-  printf '%s\n' "$KEY" >> "$HOME_DIR/.ssh/authorized_keys"
-  chown -R "$U:$U" "$HOME_DIR/.ssh"
+  if grep -Fqx "$KEY" "$HOME_DIR/.ssh/authorized_keys" 2>/dev/null; then
+    rm -f "$TEMP_KEY"
+    trap - EXIT
+    echo -e "${YELLOW}⚠ Key already exists in authorized_keys${NC}"
+    return
+  fi
 
-  echo -e "${GREEN}✔ Key added"
+  printf '%s\n' "$KEY" >> "$HOME_DIR/.ssh/authorized_keys"
+  chown "$U:$USER_GROUP" "$HOME_DIR/.ssh/authorized_keys"
+
+  rm -f "$TEMP_KEY"
+  trap - EXIT
+
+  echo -e "${GREEN}✔ Key added${NC}"
 }
 
 user_menu() {
