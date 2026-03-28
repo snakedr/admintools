@@ -284,102 +284,6 @@ user_prepare_ssh() {
   echo -e "${GREEN}✔ SSH directory prepared${NC}"
 }
 
-user_generate_ssh_key() {
-  local U HOME_DIR KEY_PATH
-
-  read -rp "Username: " U
-
-  if ! user_exists "$U"; then
-    echo -e "${RED}❌ User does not exist"
-    return
-  fi
-
-  HOME_DIR="$(user_home_dir "$U")"
-  if [ -z "$HOME_DIR" ]; then
-    echo -e "${RED}❌ Could not determine home directory"
-    return
-  fi
-
-  mkdir -p "$HOME_DIR/.ssh"
-  chmod 700 "$HOME_DIR/.ssh"
-
-  KEY_PATH="$HOME_DIR/.ssh/id_ed25519"
-  if [ -f "$KEY_PATH" ] || [ -f "$KEY_PATH.pub" ]; then
-    echo -e "${RED}❌ Key already exists: $KEY_PATH"
-    return
-  fi
-
-  ssh-keygen -t ed25519 -f "$KEY_PATH" -N "" -C "$U@$(hostname)"
-  chmod 600 "$KEY_PATH"
-  chmod 644 "$KEY_PATH.pub"
-  chown "$U:$U" "$KEY_PATH" "$KEY_PATH.pub"
-
-  echo -e "${GREEN}✔ SSH keypair generated${NC}"
-  echo "Public key:"
-  cat "$KEY_PATH.pub"
-}
-
-user_show_public_key() {
-  local U HOME_DIR KEY_PATH
-
-  read -rp "Username: " U
-
-  if ! user_exists "$U"; then
-    echo -e "${RED}❌ User does not exist"
-    return
-  fi
-
-  HOME_DIR="$(user_home_dir "$U")"
-  KEY_PATH="$HOME_DIR/.ssh/id_ed25519.pub"
-
-  if [ ! -f "$KEY_PATH" ]; then
-    echo -e "${RED}❌ Public key not found"
-    return
-  fi
-
-  echo "Public key:"
-  cat "$KEY_PATH"
-}
-
-user_authorize_generated_key() {
-  local U HOME_DIR PUBLIC_KEY_PATH
-
-  read -rp "Username: " U
-
-  if ! user_exists "$U"; then
-    echo -e "${RED}❌ User does not exist"
-    return
-  fi
-
-  HOME_DIR="$(user_home_dir "$U")"
-  if [ -z "$HOME_DIR" ]; then
-    echo -e "${RED}❌ Could not determine home directory"
-    return
-  fi
-
-  PUBLIC_KEY_PATH="$HOME_DIR/.ssh/id_ed25519.pub"
-  if [ ! -f "$PUBLIC_KEY_PATH" ]; then
-    echo -e "${RED}❌ Generated public key not found"
-    return
-  fi
-
-  mkdir -p "$HOME_DIR/.ssh"
-  touch "$HOME_DIR/.ssh/authorized_keys"
-  chmod 700 "$HOME_DIR/.ssh"
-  chmod 600 "$HOME_DIR/.ssh/authorized_keys"
-
-  if grep -Fqx "$(cat "$PUBLIC_KEY_PATH")" "$HOME_DIR/.ssh/authorized_keys"; then
-    echo -e "${GREEN}✔ Generated public key is already authorized${NC}"
-    chown -R "$U:$U" "$HOME_DIR/.ssh"
-    return
-  fi
-
-  cat "$PUBLIC_KEY_PATH" >> "$HOME_DIR/.ssh/authorized_keys"
-  chown -R "$U:$U" "$HOME_DIR/.ssh"
-
-  echo -e "${GREEN}✔ Generated public key added to authorized_keys"
-}
-
 ssh_add_key() {
   local U HOME_DIR KEY
 
@@ -429,14 +333,10 @@ user_menu() {
     echo ""
     echo -e "${DIM}Tips:${NC}"
     echo -e "${GRAY}• For SSH login: paste client public key into authorized_keys${NC}"
-    echo -e "${GRAY}• Server-side keys: useful for git, automation, outbound SSH${NC}"
     echo ""
     print_menu_item "1" "Add sudo user" "$GREEN"
     print_menu_item "2" "Prepare .ssh + authorized_keys" "$GREEN"
-    print_menu_item "3" "Generate server-side ed25519 keypair" "$GREEN"
-    print_menu_item "4" "Add client public key to authorized_keys" "$CYAN"
-    print_menu_item "5" "Show generated public key" "$CYAN"
-    print_menu_item "6" "Authorize generated public key" "$CYAN"
+    print_menu_item "3" "Add client public key to authorized_keys" "$CYAN"
     echo ""
     print_menu_item "0" "Back" "$GRAY"
     echo ""
@@ -444,12 +344,9 @@ user_menu() {
     read -rp "Select: " c
 
     case $c in
-      1) user_add ;;
-      2) user_prepare_ssh ;;
-      3) user_generate_ssh_key ;;
-      4) ssh_add_key ;;
-      5) user_show_public_key ;;
-      6) user_authorize_generated_key ;;
+      1) user_add; pause ;;
+      2) user_prepare_ssh; pause ;;
+      3) ssh_add_key; pause ;;
       0) break ;;
       *) echo -e "${RED}Invalid${NC}" ;;
     esac

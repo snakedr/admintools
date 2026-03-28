@@ -216,19 +216,7 @@ Creates:
 
 ---
 
-### 3. Generate server-side ed25519 keypair
-
-Creates keys on the server:
-
-* `~/.ssh/id_ed25519` — private
-* `~/.ssh/id_ed25519.pub` — public
-
-This is needed when the server itself connects to other services
-(e.g., GitHub, another server).
-
----
-
-### 4. Add client public key to authorized_keys
+### 3. Add client public key to authorized_keys
 
 Main scenario.
 
@@ -259,22 +247,7 @@ Example key:
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB3Lw... user@computer
 ```
 
-Copy the entire line and paste into option 4.
-
----
-
-### 5. Show generated public key
-
-Shows the key created on the server (option 3).
-Needed if you want to use the server as a client.
-
----
-
-### 6. Authorize generated public key
-
-Adds server key to `authorized_keys`.
-
-Rarely used. Usually not required.
+Copy the entire line and paste into option 3.
 
 ---
 
@@ -283,21 +256,12 @@ Rarely used. Usually not required.
 1. Users → 1 — create user
 2. Users → 2 — prepare `.ssh`
 3. Get public key on your computer
-4. Users → 4 — add key to server
+4. Users → 3 — add key to server
 5. Connect:
 
 ```bash
 ssh user@server-ip
 ```
-
----
-
-#### Important distinction
-
-* Option 4 — you connect to the server
-* Options 3, 5, 6 — server connects to other systems
-
-In most cases, only option 4 is used.
 
 ### 3. Docker
 
