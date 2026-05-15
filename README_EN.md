@@ -437,7 +437,7 @@ Shows current server state:
 - **Disk** — disk space usage. Shows size and usage percentage for each partition
 - **Top processes** — list of most resource-intensive processes. Shows PID, user, % CPU, % RAM, and process name
 
-Press r to refresh data, q to exit.
+Press r to refresh data, 0 to exit.
 
 ### 8. Network Tools
 
